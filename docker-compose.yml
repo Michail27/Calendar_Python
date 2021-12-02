@@ -1,0 +1,50 @@
+version : "3.9"
+
+services: 
+  web:
+    build:
+      context: . 
+      dockerfile: calendar_docker_file
+    container_name: django_web_calendar
+    volumes:
+      - ./calendar_event:/calendar_event
+    ports:
+      - "8000:8000"
+    command:  sh -c "python3 manage.py  makemigrations & python3 manage.py runserver 0.0.0.0:8000"
+    # python3 manage.py  makemigrations & python3 manage.py migrate &
+    depends_on:
+      - db
+    env_file:
+      - db_keys.txt
+
+  db:
+    image: postgres:latest
+    container_name: my_calendar_db  
+    env_file:
+      - db_keys.txt
+
+  adminer:
+    image: adminer:latest
+    container_name: adminer_calendar
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+
+  cache:
+    image: redis:latest
+    container_name: my_cache_calendar
+
+  celery:
+    build:
+      context: .
+      dockerfile: calendar_docker_file
+    container_name: celery
+    volumes:
+      - ./calendar_event:/calendar_event
+    env_file:
+      - db_keys.txt
+    depends_on:
+      - db
+      - cache
+    command: sh -c "celery -A calendar_event worker -l INFO -B --loglevel=DEBUG"
